@@ -16,15 +16,17 @@ driver.implicitly_wait(3)
 
 def main():
   init()
-  load()
-  n = get_job_offers_count()
-  print('Number of job offers: '+str(n))
+  #load()
+  #n = get_job_offers_count()
+  #print('Number of job offers: '+str(n))
   try:
     #for index in range(n):
     #  extract_job_description(index)
     #  time.sleep(2)
+    tech_usage = Counter()
     for job in job_descriptions:        
-      tech_usage = extract_technologies([job], technologies)
+      job_tech_usage = extract_technologies([job], technologies)
+      tech_usage.update(job_tech_usage)
     for tech, count in tech_usage.most_common():
       print(f'{tech}: {count}')
   except Exception as e:

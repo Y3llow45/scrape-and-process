@@ -54,9 +54,9 @@ def extract_technologies(jobs, tech_list):
   tech_counter = Counter()
   for job in jobs:
     job_cleaned = re.sub(r'[^\w\s]', '', job).lower()
+    job_words = job_cleaned.split()
     for tech in tech_list:
-      score = process.extractOne(tech.lower(), [job_cleaned])
-      if score[1] > 80:
+      if tech.lower() in job_words:
         tech_counter[tech] += 1
   return tech_counter
 

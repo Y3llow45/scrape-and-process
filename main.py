@@ -20,12 +20,17 @@ def main():
   #n = get_job_offers_count()
   #print('Number of job offers: '+str(n))
   try:
-    #for index in range(n):
+    #for index in range(16):
     #  extract_job_description(index)
     #  time.sleep(2)
     tech_usage = Counter()
-    for job in job_descriptions:        
+    time.sleep(1)
+    print('here /////////////////////////////////////////////////////////////////////////////////////')
+    time.sleep(1)
+    for job in job_descriptions:  
+      print(job)      
       job_tech_usage = extract_technologies([job], technologies)
+      print(job_tech_usage)
       tech_usage.update(job_tech_usage)
     for tech, count in tech_usage.most_common():
       print(f'{tech}: {count}')
@@ -37,6 +42,7 @@ def main():
 def init():
   global technologies
   global job_descriptions
+  global job_links
   with open('technologies.json', 'r') as file:
     technologies = json.load(file)
   with open('job_descriptions.json', 'r') as file:
@@ -68,7 +74,7 @@ def load():
 
 def extract_job_description(index):
   job_links = driver.find_elements(By.CSS_SELECTOR, "a.overlay-link.ab-trigger")
-  print(job_links[0])
+  print(job_links[index])
   job_links[index].click()
   job_description_div = WebDriverWait(driver, 10).until(
       EC.visibility_of_element_located((By.CLASS_NAME, "job_description"))
@@ -84,7 +90,8 @@ def save_job_description(description):
       job_descriptions = json.load(file)
   except FileNotFoundError:
     job_descriptions = []
-  job_descriptions.append(description)
+  if description not in job_descriptions:
+    job_descriptions.append(description)
   with open('job_descriptions.json', 'w') as file:
     json.dump(job_descriptions, file, indent=4)
 

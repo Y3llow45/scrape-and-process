@@ -16,21 +16,20 @@ driver.implicitly_wait(3)
 
 def main():
   init()
-  #load()
-  #n = get_job_offers_count()
-  #print('Number of job offers: '+str(n))
+  load()
+  n = get_job_offers_count()
+  print('Number of job offers: '+str(n))
   try:
-    #for index in range(16):
+    #for index in range(20):
+    #  print("Index is "+str(index))
     #  extract_job_description(index)
-    #  time.sleep(2)
+    #  time.sleep(0.5)
     tech_usage = Counter()
     time.sleep(1)
     print('here /////////////////////////////////////////////////////////////////////////////////////')
     time.sleep(1)
-    for job in job_descriptions:  
-      print(job)      
+    for job in job_descriptions:    
       job_tech_usage = extract_technologies([job], technologies)
-      print(job_tech_usage)
       tech_usage.update(job_tech_usage)
     for tech, count in tech_usage.most_common():
       print(f'{tech}: {count}')
@@ -67,22 +66,24 @@ def extract_technologies(jobs, tech_list):
   return tech_counter
 
 def load():
-  driver.get("https://dev.bg/company/jobs/back-end-development/?_job_location=remote") # itjobs will ban you
+  driver.get("https://dev.bg/company/jobs/back-end-development/?_job_location=remote")
   accept = driver.find_element(By.CLASS_NAME, "cmplz-accept")
   accept.click()
   time.sleep(2)
 
 def extract_job_description(index):
   job_links = driver.find_elements(By.CSS_SELECTOR, "a.overlay-link.ab-trigger")
-  print(job_links[index])
-  job_links[index].click()
-  job_description_div = WebDriverWait(driver, 10).until(
+  job_links[index*2].click() # no idea why index*2 works
+  try:
+    job_description_div = WebDriverWait(driver, 10).until(
       EC.visibility_of_element_located((By.CLASS_NAME, "job_description"))
-  )
-  job_description = job_description_div.text
-  print('job description'+str(job_description))
-  save_job_description(job_description)
-  driver.back()
+    )
+    job_description = job_description_div.text
+    save_job_description(job_description)
+    driver.back()
+  except:
+    driver.back()
+  
 
 def save_job_description(description):
   try:

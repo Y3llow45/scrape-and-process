@@ -1,6 +1,7 @@
 import re
 from collections import Counter
 from fuzzywuzzy import process
+import math
 import json
 import time
 from selenium import webdriver
@@ -19,11 +20,12 @@ def main():
   load()
   n = get_job_offers_count()
   print('Number of job offers: '+str(n))
+  pages = math.floor(n/20)
+  left = n-(pages*20)
+
   try:
-    #for index in range(20):
-    #  print("Index is "+str(index))
-    #  extract_job_description(index)
-    #  time.sleep(0.5)
+    getJobs()
+
     tech_usage = Counter()
     time.sleep(1)
     print('here /////////////////////////////////////////////////////////////////////////////////////')
@@ -36,6 +38,7 @@ def main():
   except Exception as e:
     print(f"Error: {e}")
   finally:
+    
     driver.quit()
 
 def init():
@@ -46,6 +49,40 @@ def init():
     technologies = json.load(file)
   with open('job_descriptions.json', 'r') as file:
     job_descriptions = [desc for desc in json.load(file) if desc]
+
+def getJobs():
+  n = get_job_offers_count()
+  print('Number of job offers: '+str(n))
+  pages = math.floor(n/20)
+  left = n-(pages*20)
+  for p in range(pages):
+    for index in range(20):
+      print("Index is "+str(index))
+      try:
+        extract_job_description(index)
+      except Exception as e:
+        print(f"Error processing job at index {index}: {e}")
+      time.sleep(0.5)
+    navigate_to_next_page()
+  for index in range(left):
+    print("Index is "+str(index))
+    try:
+      extract_job_description(index)
+    except Exception as e:
+      print(f"Error processing job at index {index}: {e}")
+    time.sleep(0.5)  
+    
+
+def navigate_to_next_page():
+  try:
+    next_button = driver.find_element(By.CSS_SELECTOR, "a.facetwp-page.next")
+    if next_button:
+      next_button.click()
+      time.sleep(1)
+      return True
+  except Exception:
+    print("No more pages available.")
+  return False
 
 def get_job_offers_count():
   total_jobs_div = WebDriverWait(driver, 1).until(
@@ -83,7 +120,6 @@ def extract_job_description(index):
     driver.back()
   except:
     driver.back()
-  
 
 def save_job_description(description):
   try:

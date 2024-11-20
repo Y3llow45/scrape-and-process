@@ -20,12 +20,11 @@ def main():
   load()
   n = get_job_offers_count()
   print('Number of job offers: '+str(n))
-  pages = math.floor(n/20)
-  left = n-(pages*20)
-
+  jobs_per_page = 20
+  pages = math.floor(n/jobs_per_page)
+  left = n-(pages*jobs_per_page)
   try:
-    getJobs()
-
+    #getJobs(pages, left)
     tech_usage = Counter()
     time.sleep(1)
     print('here /////////////////////////////////////////////////////////////////////////////////////')
@@ -50,28 +49,25 @@ def init():
   with open('job_descriptions.json', 'r') as file:
     job_descriptions = [desc for desc in json.load(file) if desc]
 
-def getJobs():
+def getJobs(pages, left):
   n = get_job_offers_count()
   print('Number of job offers: '+str(n))
-  pages = math.floor(n/20)
-  left = n-(pages*20)
+
   for p in range(pages):
     for index in range(20):
-      print("Index is "+str(index))
-      try:
-        extract_job_description(index)
-      except Exception as e:
-        print(f"Error processing job at index {index}: {e}")
+      process_job(index)
       time.sleep(0.5)
     navigate_to_next_page()
   for index in range(left):
-    print("Index is "+str(index))
-    try:
-      extract_job_description(index)
-    except Exception as e:
-      print(f"Error processing job at index {index}: {e}")
+    process_job(index)
     time.sleep(0.5)  
     
+def process_job(index):
+  try:
+    print(f"Processing job at index {index}")
+    extract_job_description(index)
+  except Exception as e:
+    print(f"Error processing job at index {index}: {e}")
 
 def navigate_to_next_page():
   try:

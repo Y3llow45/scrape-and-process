@@ -62,8 +62,7 @@ class AppWindow(QMainWindow):
         self.scrape_thread = None
 
     def get_selected_filters(self):
-        """Build the URL filters based on selected checkboxes."""
-        base_url = "https://dev.bg/company/jobs/back-end-development/"
+        base_url = "https://dev.bg/company/jobs/"
         query_params = []
         for filter_name, checkbox in self.filters.items():
             if checkbox.isChecked():
@@ -73,22 +72,21 @@ class AppWindow(QMainWindow):
 
     @staticmethod
     def convert_filter_to_param(filter_name):
-        """Convert a filter name to the corresponding query parameter."""
         mapping = {
             "Fully Remote": "_job_location=remote",
+            "Sofia": "_job_location=sofiya",
             "Intern/Junior": "_seniority=intern",
-            "1-2 Years Experience": "_seniority=mid-level",
-            "2-5 Years Experience": "_seniority=senior",
-            "5+ Years Experience": "_seniority=lead",
-            "Team Lead": "_seniority=team-lead",
+            "1-2 Years Experience": "_seniority=junior",
+            "2-5 Years Experience": "_seniority=mid-level",
+            "5+ Years Experience": "_seniority=senior",
+            "Team Lead": "_seniority=grand-master",
             "With Mentioned Salary": "_salary=1",
-            "Small Company": "_company_size=small",
-            "Big Company": "_company_size=large"
+            "Small Company": "_it_employees_count=35%2C36",
+            "Big Company": "_it_employees_count=37%2C38",
         }
         return mapping.get(filter_name, "")
 
     def start_scraping(self):
-        """Start the scraping process with selected filters."""
         selected_filters = self.get_selected_filters()
         print(f"Scraping with filters: {selected_filters}")
 
@@ -98,11 +96,9 @@ class AppWindow(QMainWindow):
         self.scrape_thread.start()
 
     def update_progress(self, value):
-        """Update the progress bar."""
         self.progress_bar.setValue(value)
 
     def update_status(self, status):
-        """Update the status label."""
         self.status_label.setText(f"Status: {status}")
 
 if __name__ == "__main__":

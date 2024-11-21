@@ -1,9 +1,10 @@
 import sys
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QProgressBar, QCheckBox, QWidget, QLabel, QComboBox, QGroupBox
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QProgressBar, QCheckBox, QWidget, QLabel, QComboBox, QGroupBox, QGridLayout, QTabWidget, QTextEdit
 )
 from PySide6.QtCore import Qt, QThread, Signal
 import time
+
 
 class ScrapeThread(QThread):
     progress = Signal(int)
@@ -20,6 +21,7 @@ class ScrapeThread(QThread):
             self.progress.emit(int((i + 1) / total_jobs * 100))
         self.status.emit("Scraping complete!")
 
+
 class AppWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -31,9 +33,21 @@ class AppWindow(QMainWindow):
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
+        self.main_layout = QVBoxLayout(self.central_widget)
 
-        self.layout.addWidget(QLabel("Select Category:"))
+        self.tab_widget = QTabWidget()
+        self.main_layout.addWidget(self.tab_widget)
+
+        self.create_filter_tab()
+        self.create_results_tab()
+
+    def create_filter_tab(self):
+        self.filter_tab = QWidget()
+        self.tab_widget.addTab(self.filter_tab, "Filters")
+
+        layout = QVBoxLayout(self.filter_tab)
+
+        layout.addWidget(QLabel("Select Category:"))
         self.category_selector = QComboBox()
         self.categories = {
             "Front-End Development": "https://dev.bg/company/jobs/front-end-development/",
@@ -48,29 +62,33 @@ class AppWindow(QMainWindow):
         }
         self.category_selector.addItems(self.categories.keys())
         self.category_selector.currentIndexChanged.connect(self.update_filters)
-        self.layout.addWidget(self.category_selector)
+        layout.addWidget(self.category_selector)
 
-        # Filters grouped into categories
         self.filters_layout = QVBoxLayout()
         self.create_filter_groups()
-        self.layout.addLayout(self.filters_layout)
+        layout.addLayout(self.filters_layout)
 
         self.scrape_button = QPushButton("Scrape All Jobs")
         self.scrape_button.clicked.connect(self.start_scraping)
-        self.layout.addWidget(self.scrape_button)
-
-        self.count_button = QPushButton("Count Technologies")
-        self.layout.addWidget(self.count_button)
+        layout.addWidget(self.scrape_button)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_bar)
 
         self.status_label = QLabel("Status: Waiting...")
-        self.layout.addWidget(self.status_label)
+        layout.addWidget(self.status_label)
 
         self.scrape_thread = None
-        self.update_filters()
+
+    def create_results_tab(self):
+        self.results_tab = QWidget()
+        self.tab_widget.addTab(self.results_tab, "Results")
+
+        layout = QVBoxLayout(self.results_tab)
+        self.results_text = QTextEdit()
+        self.results_text.setReadOnly(True)
+        layout.addWidget(self.results_text)
 
     def create_filter_groups(self):
         self.filter_options = {
@@ -97,18 +115,42 @@ class AppWindow(QMainWindow):
                 "Node.js": "_ts_front_end_development=node-js",
                 "Redux": "_ts_front_end_development=redux",
                 "Express": "_ts_front_end_development=express",
-                "Next.js": "_ts_front_end_development=next-js"
+                "Next.js": "_ts_front_end_development=next-js",
+                "CSS3": "_ts_front_end_development=css3"
             }
         }
         self.filter_checkboxes = {}
 
         for category, options in self.filter_options.items():
             group_box = QGroupBox(category)
-            group_layout = QVBoxLayout()
-            for filter_name, param in options.items():
-                checkbox = QCheckBox(filter_name)
-                self.filter_checkboxes[filter_name] = checkbox
-                group_layout.addWidget(checkbox)
+
+            if category == "Seniority":
+                group_layout = QGridLayout()
+                for i, (filter_name, param) in enumerate(options.items()):
+                    checkbox = QCheckBox(filter_name)
+                    self.filter_checkboxes[filter_name] = checkbox
+                    row, col = divmod(i, 3)
+                    group_layout.addWidget(checkbox, row, col)
+            elif category == "Tech Stack":
+                group_layout = QGridLayout()
+                for i, (filter_name, param) in enumerate(options.items()):
+                    checkbox = QCheckBox(filter_name)
+                    self.filter_checkboxes[filter_name] = checkbox
+                    row, col = divmod(i, 3)
+                    group_layout.addWidget(checkbox, row, col)
+            elif category in ["Location", "Team Size"]:
+                group_layout = QHBoxLayout()
+                for filter_name, param in options.items():
+                    checkbox = QCheckBox(filter_name)
+                    self.filter_checkboxes[filter_name] = checkbox
+                    group_layout.addWidget(checkbox)
+            else:
+                group_layout = QVBoxLayout()
+                for filter_name, param in options.items():
+                    checkbox = QCheckBox(filter_name)
+                    self.filter_checkboxes[filter_name] = checkbox
+                    group_layout.addWidget(checkbox)
+
             group_box.setLayout(group_layout)
             self.filters_layout.addWidget(group_box)
 
@@ -169,11 +211,14 @@ class AppWindow(QMainWindow):
         self.scrape_thread.status.connect(self.update_status)
         self.scrape_thread.start()
 
+        self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
+
     def update_progress(self, value):
         self.progress_bar.setValue(value)
 
     def update_status(self, status):
         self.status_label.setText(f"Status: {status}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

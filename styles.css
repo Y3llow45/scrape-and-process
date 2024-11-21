@@ -22,10 +22,10 @@ QGroupBox {
     padding: 10px;
 }
 
-QProgressBar {
-    height: 20px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    text-align: center;
-    background-color: #f3f3f3;
+QGridLayout, QHBoxLayout {
+    margin: 5px;
+}
+
+QCheckBox {
+    padding: 5px;
 }

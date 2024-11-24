@@ -3,33 +3,110 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QProgressBar, QCheckBox, QWidget, QLabel, QComboBox, QGroupBox, QGridLayout, QTabWidget, QTextEdit
 )
 from PySide6.QtCore import Qt, QThread, Signal
+import re
+from collections import Counter
+from fuzzywuzzy import process
+import math
+import json
 import time
-
+from selenium import webdriver
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 class ScrapeThread(QThread):
     progress = Signal(int)
     status = Signal(str)
 
-    def __init__(self, filters):
+    def __init__(self, driver, filters, job_descriptions, technologies):
         super().__init__()
+        self.driver = driver
         self.filters = filters
+        self.job_descriptions = job_descriptions
+        self.technologies = technologies
+
+    def get_job_offers_count(self):
+        total_jobs_div = WebDriverWait(self.driver, 1).until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "facetwp-facet-total_items"))
+        )
+        return int(total_jobs_div.text.split()[0])
+
+    def navigate_to_next_page(self):
+        try:
+            next_button = self.driver.find_element(By.CSS_SELECTOR, "a.facetwp-page.next")
+            if next_button:
+                next_button.click()
+                time.sleep(1)
+                return True
+        except Exception:
+            pass
+        return False
+
+    def process_job(self, index):
+        pass
+
+    def extract_technologies(self, jobs):
+        tech_counter = Counter()
+        for job in jobs:
+            job_cleaned = re.sub(r'[^\w\s]', '', job).lower()
+            job_words = job_cleaned.split()
+            for tech in self.technologies:
+                if tech.lower() in job_words:
+                    tech_counter[tech] += 1
+        return tech_counter
 
     def run(self):
-        total_jobs = 100
-        for i in range(total_jobs):
-            time.sleep(0.05)
-            self.progress.emit(int((i + 1) / total_jobs * 100))
+        self.driver.get(self.filters)
+        self.driver.find_element(By.CLASS_NAME, "cmplz-accept").click()
+        time.sleep(2)
+
+        n = self.get_job_offers_count()
+        jobs_per_page = 20
+        pages = math.floor(n / jobs_per_page)
+        left = n - (pages * jobs_per_page)
+
+        tech_usage = Counter()
+        for p in range(pages):
+            for index in range(20):
+                self.process_job(index)
+                time.sleep(0.5)
+            self.navigate_to_next_page()
+
+        for index in range(left):
+            self.process_job(index)
+            time.sleep(0.5)
+
+        for job in self.job_descriptions:
+            job_tech_usage = self.extract_technologies([job])
+            tech_usage.update(job_tech_usage)
+
+        for tech, count in tech_usage.most_common():
+            print(f'{tech}: {count}')
+        
+        self.driver.quit()
         self.status.emit("Scraping complete!")
 
 
 class AppWindow(QMainWindow):
+    def load_files(self):
+        with open('technologies.json', 'r') as file:
+            self.technologies = json.load(file)
+        with open('job_descriptions.json', 'r') as file:
+            self.job_descriptions = [desc for desc in json.load(file) if desc]
+        with open("styles.css", "r") as file:
+            self.setStyleSheet(file.read())
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Job Scraper")
         self.setGeometry(100, 100, 700, 500)
 
-        with open("styles.css", "r") as file:
-            self.setStyleSheet(file.read())
+        self.driver = webdriver.Firefox(service=Service(executable_path='./driver/geckodriver.exe'))
+        self.driver.set_window_size(700, 700)
+        self.driver.implicitly_wait(3)
+
+        self.load_files()
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -78,8 +155,6 @@ class AppWindow(QMainWindow):
 
         self.status_label = QLabel("Status: Waiting...")
         layout.addWidget(self.status_label)
-
-        self.scrape_thread = None
 
     def create_results_tab(self):
         self.results_tab = QWidget()
@@ -203,23 +278,13 @@ class AppWindow(QMainWindow):
         return ""
 
     def start_scraping(self):
-        selected_filters = self.get_selected_filters()
-        print(f"Scraping with filters: {selected_filters}")
-
-        self.scrape_thread = ScrapeThread(selected_filters)
-        self.scrape_thread.progress.connect(self.update_progress)
-        self.scrape_thread.status.connect(self.update_status)
-        self.scrape_thread.start()
-
-        self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
-
-    def update_progress(self, value):
-        self.progress_bar.setValue(value)
-
-    def update_status(self, status):
-        self.status_label.setText(f"Status: {status}")
-
-
+        try:
+            selected_filters = self.get_selected_filters()
+            print(f"Scraping with filters: {selected_filters}")
+            self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
+        except Exception as e:
+            print(f"Error during scraping: {e}")
+            
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = AppWindow()

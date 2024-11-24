@@ -1,4 +1,6 @@
 ## Description
 
-## Notes
-DO NOT use jobs.bg because you can get banned by IP
+## GUI
+
+<img src="https://github.com/user-attachments/assets/f5d29f77-fbe1-4982-8afe-c87aefb79803" width="420px">
+<img src="https://github.com/user-attachments/assets/750205cc-d4a8-41b1-bf12-687ce0c38abe" width="420px">

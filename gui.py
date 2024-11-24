@@ -329,6 +329,15 @@ class AppWindow(QMainWindow):
         except Exception as e:
             print(f"Error during scraping: {e}")
             
+    def update_progress(self, value):
+        self.progress_bar.setValue(value)
+
+    def update_status(self, status):
+        self.status_label.setText(f"Status: {status}")
+
+    def display_results(self, results):
+        self.results_text.setText(results)
+            
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = AppWindow()

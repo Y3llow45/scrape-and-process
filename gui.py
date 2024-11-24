@@ -18,14 +18,12 @@ from selenium.webdriver.support import expected_conditions as EC
 class ScrapeThread(QThread):
     progress = Signal(int)
     status = Signal(str)
+    results = Signal(str)
 
-    def __init__(self, driver, filters, job_descriptions, technologies):
+    def __init__(self, filters):
         super().__init__()
-        print("in init")
-        self.driver = driver
         self.filters = filters
-        self.job_descriptions = job_descriptions
-        self.technologies = technologies
+        self.job_descriptions = []
 
     def get_job_offers_count(self):
         total_jobs_div = WebDriverWait(self.driver, 1).until(
@@ -91,15 +89,19 @@ class ScrapeThread(QThread):
 
         for p in range(pages):
             for index in range(20):
-                self.process_job(index)
+                self.job_descriptions.append(self.process_job(index))
                 time.sleep(0.5)
             self.navigate_to_next_page()
         for index in range(left):
-            self.process_job(index)
-            time.sleep(0.5)  
+            self.job_descriptions.append(self.process_job(index))
+            time.sleep(0.5)
 
     def run(self):
-        self.driver.get()
+        self.driver = webdriver.Firefox(service=Service(executable_path='./driver/geckodriver.exe'))
+        self.driver.set_window_size(700, 700)
+        self.driver.implicitly_wait(3)
+        
+        print(self.filters)
         self.driver.get(self.filters)
         self.driver.find_element(By.CLASS_NAME, "cmplz-accept").click()
         time.sleep(2)
@@ -117,14 +119,18 @@ class ScrapeThread(QThread):
                 tech_usage.update(job_tech_usage)
 
             for tech, count in tech_usage.most_common():
-                print(f'{tech}: {count}') # store all results in a variable and then display the variable in results tab
-        
+                print(f'{tech}: {count}')
+                
+            results = "\n".join([f"{tech}: {count}" for tech, count in tech_usage.most_common()])
+            self.results.emit(results)
+            
             self.driver.quit()
             self.status.emit("Scraping complete!")
         except Exception as e :
             print(f"Error: {e}")
         finally:
-            self.driver.quit()
+            if self.driver:
+                self.driver.quit()
 
 
 class AppWindow(QMainWindow):
@@ -140,10 +146,6 @@ class AppWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Job Scraper")
         self.setGeometry(100, 100, 700, 500)
-
-        self.driver = webdriver.Firefox(service=Service(executable_path='./driver/geckodriver.exe'))
-        self.driver.set_window_size(700, 700)
-        self.driver.implicitly_wait(3)
 
         self.load_files()
 
@@ -321,7 +323,7 @@ class AppWindow(QMainWindow):
             selected_filters = self.get_selected_filters()
             print(f"Scraping with filters: {selected_filters}")
             self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
-            self.scrape_thread = ScrapeThread(selected_filters)
+            self.scrape_thread = ScrapeThread(self)
             self.scrape_thread.progress.connect(self.update_progress)
             self.scrape_thread.status.connect(self.update_status)
             self.scrape_thread.results.connect(self.display_results)

@@ -43,8 +43,36 @@ class ScrapeThread(QThread):
             pass
         return False
 
-    def process_job(self, index):
-        pass
+    def process_job(index, self):
+        try:
+            print(f"Processing job at index {index}")
+            self.extract_job_description(index)
+        except Exception as e:
+            print(f"Error processing job at index {index}: {e}")
+            
+    def extract_job_description(index, self):
+        job_links = self.driver.find_elements(By.CSS_SELECTOR, "a.overlay-link.ab-trigger")
+        job_links[index*2].click()
+        try:
+            job_description_div = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.CLASS_NAME, "job_description"))
+            )
+            job_description = job_description_div.text
+            self.save_job_description(job_description)
+            self.self.driver.back()
+        except:
+            self.self.driver.back()
+
+    def save_job_description(description):
+        try:
+            with open('job_descriptions.json', 'r') as file:
+                job_descriptions = json.load(file)
+        except FileNotFoundError:
+            job_descriptions = []
+        if description not in job_descriptions:
+            job_descriptions.append(description)
+        with open('job_descriptions.json', 'w') as file:
+            json.dump(job_descriptions, file, indent=4)
 
     def extract_technologies(self, jobs):
         tech_counter = Counter()
@@ -56,6 +84,19 @@ class ScrapeThread(QThread):
                     tech_counter[tech] += 1
         return tech_counter
 
+    def getJobs(pages, left, self):
+        n = self.get_job_offers_count()
+        print('Number of job offers: '+str(n))
+
+        for p in range(pages):
+            for index in range(20):
+                self.process_job(index)
+                time.sleep(0.5)
+            self.navigate_to_next_page()
+        for index in range(left):
+            self.process_job(index)
+            time.sleep(0.5)  
+
     def run(self):
         self.driver.get(self.filters)
         self.driver.find_element(By.CLASS_NAME, "cmplz-accept").click()
@@ -66,26 +107,22 @@ class ScrapeThread(QThread):
         pages = math.floor(n / jobs_per_page)
         left = n - (pages * jobs_per_page)
 
-        tech_usage = Counter()
-        for p in range(pages):
-            for index in range(20):
-                self.process_job(index)
-                time.sleep(0.5)
-            self.navigate_to_next_page()
+        try:
+            self.getJobs(pages, left, self)
+            tech_usage = Counter()
+            for job in self.job_descriptions:
+                job_tech_usage = self.extract_technologies([job])
+                tech_usage.update(job_tech_usage)
 
-        for index in range(left):
-            self.process_job(index)
-            time.sleep(0.5)
-
-        for job in self.job_descriptions:
-            job_tech_usage = self.extract_technologies([job])
-            tech_usage.update(job_tech_usage)
-
-        for tech, count in tech_usage.most_common():
-            print(f'{tech}: {count}')
+            for tech, count in tech_usage.most_common():
+                print(f'{tech}: {count}')
         
-        self.driver.quit()
-        self.status.emit("Scraping complete!")
+            self.driver.quit()
+            self.status.emit("Scraping complete!")
+        except Exception as e :
+            print(f"Error: {e}")
+        finally:
+            self.driver.quit()
 
 
 class AppWindow(QMainWindow):

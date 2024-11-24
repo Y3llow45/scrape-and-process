@@ -20,16 +20,16 @@ class ScrapeThread(QThread):
     status = Signal(str)
     results = Signal(str)
 
-    def __init__(self, filters):
+    def __init__(self):
         super().__init__()
-        self.filters = filters
+        self.filters = ""
         self.job_descriptions = []
 
     def get_job_offers_count(self):
         total_jobs_div = WebDriverWait(self.driver, 1).until(
             EC.visibility_of_element_located((By.CLASS_NAME, "facetwp-facet-total_items"))
         )
-        return int(total_jobs_div.text.split()[0])
+        self.n = int(total_jobs_div.text.split()[0])
 
     def navigate_to_next_page(self):
         try:
@@ -42,14 +42,14 @@ class ScrapeThread(QThread):
             pass
         return False
 
-    def process_job(index, self):
+    def process_job(self, index):
         try:
             print(f"Processing job at index {index}")
             self.extract_job_description(index)
         except Exception as e:
             print(f"Error processing job at index {index}: {e}")
             
-    def extract_job_description(index, self):
+    def extract_job_description(self, index):
         job_links = self.driver.find_elements(By.CSS_SELECTOR, "a.overlay-link.ab-trigger")
         job_links[index*2].click()
         try:
@@ -83,10 +83,7 @@ class ScrapeThread(QThread):
                     tech_counter[tech] += 1
         return tech_counter
 
-    def getJobs(pages, left, self):
-        n = self.get_job_offers_count()
-        print('Number of job offers: '+str(n))
-
+    def getJobs(self, pages, left):
         for p in range(pages):
             for index in range(20):
                 self.job_descriptions.append(self.process_job(index))
@@ -106,13 +103,13 @@ class ScrapeThread(QThread):
         self.driver.find_element(By.CLASS_NAME, "cmplz-accept").click()
         time.sleep(2)
 
-        n = self.get_job_offers_count()
+        self.get_job_offers_count()
         jobs_per_page = 20
-        pages = math.floor(n / jobs_per_page)
-        left = n - (pages * jobs_per_page)
+        pages = math.floor(self.n / jobs_per_page)
+        left = self.n - (pages * jobs_per_page)
 
         try:
-            self.getJobs(pages, left, self)
+            self.getJobs(pages, left)
             tech_usage = Counter()
             for job in self.job_descriptions:
                 job_tech_usage = self.extract_technologies([job])
@@ -131,7 +128,6 @@ class ScrapeThread(QThread):
         finally:
             if self.driver:
                 self.driver.quit()
-
 
 class AppWindow(QMainWindow):
     def load_files(self):
@@ -323,7 +319,8 @@ class AppWindow(QMainWindow):
             selected_filters = self.get_selected_filters()
             print(f"Scraping with filters: {selected_filters}")
             self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
-            self.scrape_thread = ScrapeThread(self)
+            self.scrape_thread = ScrapeThread()
+            self.scrape_thread.filters = selected_filters
             self.scrape_thread.progress.connect(self.update_progress)
             self.scrape_thread.status.connect(self.update_status)
             self.scrape_thread.results.connect(self.display_results)

@@ -38,8 +38,8 @@ class ScrapeThread(QThread):
                 next_button.click()
                 time.sleep(1)
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error navigating to next page: {e}")
         return False
 
     def process_job(self, index):
@@ -48,19 +48,32 @@ class ScrapeThread(QThread):
             self.extract_job_description(index)
         except Exception as e:
             print(f"Error processing job at index {index}: {e}")
+            return None
             
     def extract_job_description(self, index):
-        job_links = self.driver.find_elements(By.CSS_SELECTOR, "a.overlay-link.ab-trigger")
-        job_links[index*2].click()
         try:
-            job_description_div = WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, "job_description"))
-            )
-            job_description = job_description_div.text
-            self.save_job_description(job_description)
-            self.self.driver.back()
-        except:
-            self.self.driver.back()
+            job_links = self.driver.find_elements(By.CSS_SELECTOR, "a.overlay-link.ab-trigger")
+            if index * 2 < len(job_links):
+                job_links[index * 2].click()
+                try:
+                    job_description_div = WebDriverWait(self.driver, 10).until(
+                        EC.visibility_of_element_located((By.CLASS_NAME, "job_description"))
+                    )
+                    job_description = job_description_div.text
+                    self.save_job_description(job_description)
+                    self.driver.back()
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.overlay-link.ab-trigger"))
+                    )
+                    return job_description
+                except Exception as e:
+                    print(f"Error extracting job description: {e}")
+                    self.driver.back()
+            else:
+                print(f"Index {index * 2} out of bounds for job links")
+        except Exception as e:
+            print(f"Error finding job links: {e}")
+        return None
 
     def save_job_description(description):
         try:
@@ -86,11 +99,15 @@ class ScrapeThread(QThread):
     def getJobs(self, pages, left):
         for p in range(pages):
             for index in range(20):
-                self.job_descriptions.append(self.process_job(index))
+                job_description = self.process_job(index)
+            if job_description:
+                self.job_descriptions.append(job_description)
                 time.sleep(0.5)
             self.navigate_to_next_page()
         for index in range(left):
-            self.job_descriptions.append(self.process_job(index))
+            job_description = self.process_job(index)
+            if job_description:
+                self.job_descriptions.append(job_description)
             time.sleep(0.5)
 
     def run(self):
@@ -121,7 +138,7 @@ class ScrapeThread(QThread):
             results = "\n".join([f"{tech}: {count}" for tech, count in tech_usage.most_common()])
             self.results.emit(results)
             
-            self.driver.quit()
+            #self.driver.quit()
             self.status.emit("Scraping complete!")
         except Exception as e :
             print(f"Error: {e}")

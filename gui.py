@@ -21,6 +21,7 @@ class ScrapeThread(QThread):
 
     def __init__(self, driver, filters, job_descriptions, technologies):
         super().__init__()
+        print("in init")
         self.driver = driver
         self.filters = filters
         self.job_descriptions = job_descriptions
@@ -98,6 +99,7 @@ class ScrapeThread(QThread):
             time.sleep(0.5)  
 
     def run(self):
+        self.driver.get()
         self.driver.get(self.filters)
         self.driver.find_element(By.CLASS_NAME, "cmplz-accept").click()
         time.sleep(2)
@@ -115,7 +117,7 @@ class ScrapeThread(QThread):
                 tech_usage.update(job_tech_usage)
 
             for tech, count in tech_usage.most_common():
-                print(f'{tech}: {count}')
+                print(f'{tech}: {count}') # store all results in a variable and then display the variable in results tab
         
             self.driver.quit()
             self.status.emit("Scraping complete!")
@@ -319,6 +321,11 @@ class AppWindow(QMainWindow):
             selected_filters = self.get_selected_filters()
             print(f"Scraping with filters: {selected_filters}")
             self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
+            self.scrape_thread = ScrapeThread(selected_filters)
+            self.scrape_thread.progress.connect(self.update_progress)
+            self.scrape_thread.status.connect(self.update_status)
+            self.scrape_thread.results.connect(self.display_results)
+            self.scrape_thread.start()
         except Exception as e:
             print(f"Error during scraping: {e}")
             

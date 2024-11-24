@@ -20,9 +20,10 @@ class ScrapeThread(QThread):
     status = Signal(str)
     results = Signal(str)
 
-    def __init__(self):
+    def __init__(self, technologies):
         super().__init__()
         self.filters = ""
+        self.technologies = technologies
         self.job_descriptions = []
 
     def get_job_offers_count(self):
@@ -45,7 +46,7 @@ class ScrapeThread(QThread):
     def process_job(self, index):
         try:
             print(f"Processing job at index {index}")
-            self.extract_job_description(index)
+            return self.extract_job_description(index)
         except Exception as e:
             print(f"Error processing job at index {index}: {e}")
             return None
@@ -75,7 +76,7 @@ class ScrapeThread(QThread):
             print(f"Error finding job links: {e}")
         return None
 
-    def save_job_description(description):
+    def save_job_description(self, description):
         try:
             with open('job_descriptions.json', 'r') as file:
                 job_descriptions = json.load(file)
@@ -115,7 +116,6 @@ class ScrapeThread(QThread):
         self.driver.set_window_size(700, 700)
         self.driver.implicitly_wait(3)
         
-        print(self.filters)
         self.driver.get(self.filters)
         self.driver.find_element(By.CLASS_NAME, "cmplz-accept").click()
         time.sleep(2)
@@ -131,14 +131,10 @@ class ScrapeThread(QThread):
             for job in self.job_descriptions:
                 job_tech_usage = self.extract_technologies([job])
                 tech_usage.update(job_tech_usage)
-
-            for tech, count in tech_usage.most_common():
-                print(f'{tech}: {count}')
                 
             results = "\n".join([f"{tech}: {count}" for tech, count in tech_usage.most_common()])
             self.results.emit(results)
             
-            #self.driver.quit()
             self.status.emit("Scraping complete!")
         except Exception as e :
             print(f"Error: {e}")
@@ -334,9 +330,8 @@ class AppWindow(QMainWindow):
     def start_scraping(self):
         try:
             selected_filters = self.get_selected_filters()
-            print(f"Scraping with filters: {selected_filters}")
             self.results_text.setText(f"Scraping with filters:\n{selected_filters}")
-            self.scrape_thread = ScrapeThread()
+            self.scrape_thread = ScrapeThread(technologies=self.technologies)
             self.scrape_thread.filters = selected_filters
             self.scrape_thread.progress.connect(self.update_progress)
             self.scrape_thread.status.connect(self.update_status)
